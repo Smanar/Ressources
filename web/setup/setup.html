@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shopping List Setup</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,system-ui,sans-serif;background:#1a1a2e;color:#e0e0e0;min-height:100vh;display:flex;align-items:center;justify-content:center}
+.card{background:#16213e;border-radius:16px;padding:28px;max-width:420px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.4)}
+h1{font-size:1.5rem;text-align:center;margin-bottom:4px;color:#fff}
+.sub{text-align:center;font-size:.85rem;color:#888;margin-bottom:20px}
+label{display:block;font-size:.85rem;color:#aaa;margin:12px 0 4px}
+input{width:100%;padding:10px 12px;border:1px solid #333;border-radius:8px;background:#0f3460;color:#fff;font-size:1rem;outline:none}
+input:focus{border-color:#5c9eff}
+input::placeholder{color:#555}
+select{width:100%;padding:10px 12px;border:1px solid #333;border-radius:8px;background:#0f3460;color:#fff;font-size:1rem;outline:none;-webkit-appearance:none;appearance:none}
+select:focus{border-color:#5c9eff}
+button{width:100%;padding:12px;border:none;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;margin-top:16px;transition:background .2s}
+#btnConnect{background:#5c9eff;color:#fff}
+#btnConnect:hover{background:#4a8ae6}
+#btnConnect:disabled{background:#333;color:#666;cursor:not-allowed}
+#btnSave{background:#22c55e;color:#fff;display:none}
+#btnSave:hover{background:#1aad52}
+#btnSave:disabled{background:#333;color:#666;cursor:not-allowed}
+.status{text-align:center;margin-top:12px;font-size:.9rem;min-height:1.2em}
+.ok{color:#22c55e}.err{color:#ef4444}.info{color:#5c9eff}
+.fields{display:none}
+.help{font-size:.75rem;color:#666;margin-top:4px}
+.help a{color:#5c9eff}
+.checkbox-label{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:.85rem;color:#ccc;cursor:pointer}
+.checkbox-label input[type="checkbox"]{width:18px;height:18px;accent-color:#5c9eff}
+.hidden{display:none!important}
+.platform-tabs{display:flex;gap:0;margin-bottom:16px;border-radius:8px;overflow:hidden;border:1px solid #333}
+.platform-tabs button{flex:1;padding:10px;border:none;background:#0f3460;color:#888;font-size:.95rem;font-weight:600;cursor:pointer;margin:0;border-radius:0;transition:all .2s}
+.platform-tabs button.active{background:#5c9eff;color:#fff}
+.platform-tabs button:hover:not(.active){background:#1a4a7a;color:#ccc}
+.section-label{font-size:.75rem;text-transform:uppercase;color:#5c9eff;letter-spacing:1px;margin:20px 0 4px;border-bottom:1px solid #333;padding-bottom:4px}
+.day-lbl{display:flex;align-items:center;gap:3px;font-size:.85rem;color:#ccc}
+.day-lbl input{width:auto}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>&#x1f7e2; Shopping List Setup</h1>
+  <p class="sub">Configure via Bluetooth</p>
+
+  <button id="btnConnect">Connect to Shopping List</button>
+  <div id="status" class="status"></div>
+
+  <div class="fields" id="fields">
+
+    <!-- Platform selector -->
+    <div class="section-label">Platform</div>
+    <div class="platform-tabs" id="platformTabs">
+      <button class="active" data-val="0">Microsoft Teams</button>
+      <button data-val="1">Zoom</button>
+    </div>
+
+    <!-- WiFi -->
+    <div class="section-label">WiFi</div>
+    <label>WiFi SSID</label>
+    <input id="ssid" placeholder="Your WiFi network">
+    <label>WiFi Password</label>
+    <input id="pass" type="password" placeholder="WiFi password">
+
+    <!-- Teams-specific fields -->
+    <div id="teamsFields">
+      <div class="section-label">Teams Authentication</div>
+      <label>Azure App Client ID</label>
+      <input id="clientId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+      <label>Azure Tenant ID</label>
+      <input id="tenantId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+      <p class="help"><a href="https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade" target="_blank" rel="noopener">Register an app in Azure</a> &mdash; add <em>Presence.Read</em> permission, enable <em>Allow public client flows</em>.</p>
+    </div>
+
+    <!-- Zoom-specific fields -->
+    <div id="zoomFields" class="hidden">
+      <div class="section-label">Zoom Authentication</div>
+      <label>Zoom Account ID</label>
+      <input id="zoomAccountId" placeholder="Your Zoom Account ID">
+      <label>Zoom Client ID</label>
+      <input id="zoomClientId" placeholder="S2S OAuth App Client ID">
+      <label>Zoom Client Secret</label>
+      <input id="zoomClientSecret" type="password" placeholder="S2S OAuth App Client Secret">
+      <p class="help"><a href="https://marketplace.zoom.us/develop/create" target="_blank" rel="noopener">Create a Server-to-Server OAuth app</a> in the Zoom Marketplace. Add the <em>user:read:user</em> scope.</p>
+    </div>
+
+    <!-- Light config -->
+    <div class="section-label">Status Light</div>
+    <label>Light Type</label>
+    <select id="lightType">
+      <option value="0">None</option>
+      <option value="1">WLED</option>
+      <option value="2">Tasmota</option>
+      <option value="3">Philips Hue</option>
+      <option value="4">WiZ Connected</option>
+    </select>
+
+    <!-- WLED help -->
+    <div id="wledFields" class="hidden">
+      <p class="help">WLED devices are <strong>auto-discovered</strong> via mDNS. No IP needed unless discovery fails. Use the <em>Lights</em> menu on the Pod to manage and provision devices with status presets.</p>
+      <label class="checkbox-label"><input type="checkbox" id="wledNew"> This is a <strong>new / factory-fresh</strong> WLED device</label>
+      <p class="help">If checked, the Pod will automatically push your WiFi credentials to the WLED device on next boot.</p>
+    </div>
+
+    <!-- WiZ fields -->
+    <div id="wizFields" class="hidden">
+      <label>WiZ IP Address(es)</label>
+      <input id="lightIpWiz" placeholder="192.168.1.50, 192.168.1.51">
+      <p class="help">Comma-separated for multiple bulbs. WiZ lights are also discovered via UDP broadcast automatically.</p>
+    </div>
+
+    <!-- Tasmota / fallback IP -->
+    <div id="genericIpField" class="hidden">
+      <label>Light IP Address</label>
+      <input id="lightIp" placeholder="192.168.1.xxx">
+    </div>
+
+    <!-- Hue fields -->
+    <div id="hueFields" class="hidden">
+      <label>Hue Bridge IP</label>
+      <input id="hueIp" placeholder="192.168.1.xxx">
+      <label>Hue API Key</label>
+      <input id="lightKey" placeholder="Press Hue Bridge button, then generate key">
+      <label>Hue Target Type</label>
+      <select id="hueTargetType">
+        <option value="L">Light</option>
+        <option value="G">Group</option>
+        <option value="R">Room</option>
+      </select>
+      <label>Hue Target ID</label>
+      <input id="hueTargetId" type="number" placeholder="1" value="1" min="1">
+      <p class="help">Use <a href="https://discovery.meethue.com/" target="_blank" rel="noopener">Hue Discovery</a> to find your bridge IP. Target a specific light, group, or room by its ID.</p>
+    </div>
+
+    <!-- Schedule / Office Hours -->
+    <div class="section-label">Schedule</div>
+    <label>Timezone</label>
+    <select id="timezone">
+      <option value="">— None (no schedule) —</option>
+      <option value="EST5EDT,M3.2.0,M11.1.0">US Eastern</option>
+      <option value="CST6CDT,M3.2.0,M11.1.0">US Central</option>
+      <option value="MST7MDT,M3.2.0,M11.1.0">US Mountain</option>
+      <option value="PST8PDT,M3.2.0,M11.1.0">US Pacific</option>
+      <option value="MST7">US Arizona (no DST)</option>
+      <option value="AST4ADT,M3.2.0,M11.1.0">Atlantic</option>
+      <option value="HST10">Hawaii</option>
+      <option value="AKST9AKDT,M3.2.0,M11.1.0">Alaska</option>
+      <option value="GMT0BST,M3.5.0/1,M10.5.0">UK / Ireland</option>
+      <option value="CET-1CEST,M3.5.0,M10.5.0/3">Central Europe</option>
+      <option value="EET-2EEST,M3.5.0/3,M10.5.0/4">Eastern Europe</option>
+      <option value="IST-5:30">India</option>
+      <option value="CST-8">China / Singapore</option>
+      <option value="JST-9">Japan / Korea</option>
+      <option value="AEST-10AEDT,M10.1.0,M4.1.0/3">Australia Eastern</option>
+      <option value="NZST-12NZDT,M9.5.0,M4.1.0/3">New Zealand</option>
+    </select>
+
+    <div id="officeHoursFields" class="hidden">
+      <label style="display:flex;align-items:center;gap:8px;margin-top:12px">
+        <input type="checkbox" id="ohEnabled" style="width:auto">
+        Enable office hours (sleep outside hours on battery)
+      </label>
+      <div style="display:flex;gap:12px;margin-top:8px">
+        <div style="flex:1"><label>Start</label><input id="ohStart" type="time" value="08:00"></div>
+        <div style="flex:1"><label>End</label><input id="ohEnd" type="time" value="17:00"></div>
+      </div>
+      <label style="margin-top:8px">Active Days</label>
+      <div id="dayChecks" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+        <label class="day-lbl"><input type="checkbox" value="0" checked> Mon</label>
+        <label class="day-lbl"><input type="checkbox" value="1" checked> Tue</label>
+        <label class="day-lbl"><input type="checkbox" value="2" checked> Wed</label>
+        <label class="day-lbl"><input type="checkbox" value="3" checked> Thu</label>
+        <label class="day-lbl"><input type="checkbox" value="4" checked> Fri</label>
+        <label class="day-lbl"><input type="checkbox" value="5"> Sat</label>
+        <label class="day-lbl"><input type="checkbox" value="6"> Sun</label>
+      </div>
+    </div>
+
+    <button id="btnSave">Save &amp; Reboot Pod</button>
+  </div>
+</div>
+
+<script>
+// BLE UUIDs — must match ble_setup.h
+const SVC  = 0x00FF;
+const UUID = {
+  ssid:         '0001ff01-0000-1000-8000-00805f9b34fb',
+  password:     '0001ff02-0000-1000-8000-00805f9b34fb',
+  clientId:     '0001ff03-0000-1000-8000-00805f9b34fb',
+  tenantId:     '0001ff04-0000-1000-8000-00805f9b34fb',
+  save:         '0001ff05-0000-1000-8000-00805f9b34fb',
+  lightType:    '0001ff06-0000-1000-8000-00805f9b34fb',
+  lightIp:      '0001ff07-0000-1000-8000-00805f9b34fb',
+  lightKey:     '0001ff08-0000-1000-8000-00805f9b34fb',
+  lightAux:     '0001ff09-0000-1000-8000-00805f9b34fb',
+  clientSecret: '0001ff0a-0000-1000-8000-00805f9b34fb',
+  platform:     '0001ff0b-0000-1000-8000-00805f9b34fb',
+  timezone:     '0001ff0c-0000-1000-8000-00805f9b34fb',
+  officeHours:  '0001ff0d-0000-1000-8000-00805f9b34fb',
+  wledNew:      '0001ff0e-0000-1000-8000-00805f9b34fb'
+};
+
+let svc = null;
+let selectedPlatform = '0';
+const $ = id => document.getElementById(id);
+const stat = (msg, cls) => { $('status').textContent = msg; $('status').className = 'status ' + cls; };
+
+// --- Platform tab switching ---
+document.querySelectorAll('#platformTabs button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#platformTabs button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedPlatform = btn.dataset.val;
+    $('teamsFields').classList.toggle('hidden', selectedPlatform !== '0');
+    $('zoomFields').classList.toggle('hidden', selectedPlatform !== '1');
+  });
+});
+
+// --- Light type shows/hides type-specific fields ---
+function updateLightFields() {
+  const t = $('lightType').value;
+  $('wledFields').classList.toggle('hidden', t !== '1');
+  $('genericIpField').classList.toggle('hidden', t !== '2'); // Tasmota only
+  $('wizFields').classList.toggle('hidden', t !== '4');
+  $('hueFields').classList.toggle('hidden', t !== '3');
+}
+$('lightType').addEventListener('change', updateLightFields);
+
+// --- Timezone shows/hides office hours fields ---
+$('timezone').addEventListener('change', () => {
+  $('officeHoursFields').classList.toggle('hidden', !$('timezone').value);
+});
+
+// --- BLE Connect ---
+$('btnConnect').addEventListener('click', async () => {
+  try {
+    stat('Scanning for Status-Pod...', 'info');
+    const dev = await navigator.bluetooth.requestDevice({
+      filters: [{ name: 'Status-Pod' }],
+      optionalServices: [SVC]
+    });
+    stat('Connecting...', 'info');
+    const server = await dev.gatt.connect();
+    svc = await server.getPrimaryService(SVC);
+    stat('Connected!', 'ok');
+    $('fields').style.display = 'block';
+    $('btnSave').style.display = 'block';
+    $('btnConnect').disabled = true;
+    $('btnConnect').textContent = 'Connected \u2713';
+
+    // Read existing values
+    const tryRead = async (uuid, el) => {
+      try {
+        const c = await svc.getCharacteristic(uuid);
+        const v = await c.readValue();
+        const s = new TextDecoder().decode(v);
+        if (s && el) el.value = s;
+        return s;
+      } catch(e) { return ''; }
+    };
+    await tryRead(UUID.clientId, $('clientId'));
+    await tryRead(UUID.tenantId, $('tenantId'));
+    await tryRead(UUID.lightType, $('lightType'));
+
+    // Read light IP — route to correct field
+    const storedIp = await tryRead(UUID.lightIp, null);
+    if (storedIp) {
+      $('lightIp').value = storedIp;
+      $('lightIpWiz').value = storedIp;
+      $('hueIp').value = storedIp;
+    }
+
+    await tryRead(UUID.lightKey, $('lightKey'));
+
+    // Read lightAux — parse Hue prefix (L/G/R + ID)
+    const storedAux = await tryRead(UUID.lightAux, null);
+    if (storedAux) {
+      const prefix = storedAux.charAt(0);
+      if (prefix === 'L' || prefix === 'G' || prefix === 'R') {
+        $('hueTargetType').value = prefix;
+        $('hueTargetId').value = storedAux.substring(1) || '1';
+      } else {
+        $('hueTargetId').value = storedAux || '1';
+      }
+    }
+
+    await tryRead(UUID.clientSecret, $('zoomClientSecret'));
+
+    // Read platform and set tabs
+    const plat = await tryRead(UUID.platform, null);
+    if (plat === '1') {
+      selectedPlatform = '1';
+      document.querySelectorAll('#platformTabs button').forEach(b => b.classList.remove('active'));
+      document.querySelector('#platformTabs button[data-val="1"]').classList.add('active');
+      $('teamsFields').classList.add('hidden');
+      $('zoomFields').classList.remove('hidden');
+      // For Zoom, clientId & tenantId map to zoomClientId & zoomAccountId
+      $('zoomClientId').value = $('clientId').value;
+      $('zoomAccountId').value = $('tenantId').value;
+    }
+
+    // Show Hue fields if light type is Hue
+    updateLightFields();
+
+    // Read timezone + office hours
+    const tz = await tryRead(UUID.timezone, null);
+    if (tz) {
+      // Set dropdown if matching, otherwise leave as "None"
+      const opt = Array.from($('timezone').options).find(o => o.value === tz);
+      if (opt) $('timezone').value = tz;
+      $('officeHoursFields').classList.toggle('hidden', !tz);
+    }
+    const oh = await tryRead(UUID.officeHours, null);
+    if (oh) {
+      // Parse "enabled,HH:MM,HH:MM,daymask"
+      const parts = oh.split(',');
+      if (parts.length >= 4) {
+        $('ohEnabled').checked = parts[0] === '1';
+        $('ohStart').value = parts[1];
+        $('ohEnd').value = parts[2];
+        const dm = parseInt(parts[3]) || 0;
+        document.querySelectorAll('#dayChecks input').forEach(cb => {
+          cb.checked = !!(dm & (1 << parseInt(cb.value)));
+        });
+      }
+    }
+
+  } catch(e) {
+    stat('Connection failed: ' + e.message, 'err');
+  }
+});
+
+// --- Save ---
+$('btnSave').addEventListener('click', async () => {
+  const ssid = $('ssid').value.trim();
+  const pass = $('pass').value;
+  if (!ssid) { stat('SSID is required', 'err'); return; }
+
+  let clientId, tenantId, clientSecret;
+  if (selectedPlatform === '0') {
+    clientId = $('clientId').value.trim();
+    tenantId = $('tenantId').value.trim();
+    clientSecret = '';
+    if (!clientId || !tenantId) { stat('Client ID and Tenant ID are required', 'err'); return; }
+  } else {
+    clientId = $('zoomClientId').value.trim();
+    tenantId = $('zoomAccountId').value.trim();
+    clientSecret = $('zoomClientSecret').value.trim();
+    if (!clientId || !tenantId || !clientSecret) { stat('All Zoom credentials are required', 'err'); return; }
+  }
+
+  try {
+    $('btnSave').disabled = true;
+    stat('Writing credentials...', 'info');
+    const enc = new TextEncoder();
+    const write = async (uuid, val) => {
+      const c = await svc.getCharacteristic(uuid);
+      await c.writeValue(enc.encode(val));
+    };
+    await write(UUID.platform, selectedPlatform);
+    await write(UUID.ssid, ssid);
+    await write(UUID.password, pass);
+    await write(UUID.clientId, clientId);
+    await write(UUID.tenantId, tenantId);
+    await write(UUID.clientSecret, clientSecret);
+    await write(UUID.lightType, $('lightType').value);
+
+    // If WLED + new device checked, send the flag
+    if ($('lightType').value === '1' && $('wledNew').checked) {
+      await write(UUID.wledNew, '1');
+    }
+
+    // Write light IP from the correct field per type
+    const lt = $('lightType').value;
+    let lip = '';
+    if (lt === '3') lip = $('hueIp').value.trim();
+    else if (lt === '4') lip = $('lightIpWiz').value.trim();
+    else lip = $('lightIp').value.trim();
+    if (lip) await write(UUID.lightIp, lip);
+
+    if (lt === '3') {
+      const lk = $('lightKey').value.trim();
+      const hueTarget = $('hueTargetType').value + ($('hueTargetId').value || '1');
+      if (lk) await write(UUID.lightKey, lk);
+      await write(UUID.lightAux, hueTarget);
+    }
+    // Write timezone + office hours
+    const tz = $('timezone').value;
+    await write(UUID.timezone, tz);
+    if (tz) {
+      let dm = 0;
+      document.querySelectorAll('#dayChecks input:checked').forEach(cb => {
+        dm |= (1 << parseInt(cb.value));
+      });
+      const oh = ($('ohEnabled').checked ? '1' : '0') + ',' +
+                 ($('ohStart').value || '08:00') + ',' +
+                 ($('ohEnd').value || '17:00') + ',' + dm;
+      await write(UUID.officeHours, oh);
+    }
+    stat('Saving & rebooting Pod...', 'info');
+    await write(UUID.save, '1');
+    stat('Done! Pod is rebooting. Close this page.', 'ok');
+  } catch(e) {
+    stat('Write failed: ' + e.message, 'err');
+    $('btnSave').disabled = false;
+  }
+});
+</script>
+</body>
+</html>
