@@ -61,10 +61,17 @@ button{width:100%;padding:12px;border:none;border-radius:8px;font-size:1rem;font
     <div id="SimpleNoteFields">
       <div class="section-label">SimpleNote Authentication</div>
       <label>User</label>
-      <input id="clientId" placeholder="xxxxxxxxxxx">
+      <input id="SNId" placeholder="xxxxxxxxxxx">
       <label>Pass</label>
-      <input id="tenantId" placeholder="xxxxxxxxxxx">
+      <input id="SNPass" placeholder="xxxxxxxxxxx">
       <p class="help"><a href="https://app.simplenote.com/" target="_blank" rel="noopener">Simple note web page</a>To create.</p>
+    </div>
+    
+    <!-- wit.ai fields -->
+    <div id="witaiFields">
+      <div class="section-label">wit.ai Authentication</div>
+      <label>API</label>
+      <input id="witaiAPI" placeholder="xxxxxxxxxxx">
     </div>
 
     <!-- Settings -->
@@ -100,29 +107,17 @@ const SVC  = 0x00FF;
 const UUID = {
   ssid:         '0001ff01-0000-1000-8000-00805f9b34fb',
   password:     '0001ff02-0000-1000-8000-00805f9b34fb',
-  clientId:     '0001ff03-0000-1000-8000-00805f9b34fb',
-  tenantId:     '0001ff04-0000-1000-8000-00805f9b34fb',
+  SNId:         '0001ff03-0000-1000-8000-00805f9b34fb',
+  SNPass:       '0001ff04-0000-1000-8000-00805f9b34fb',
   save:         '0001ff05-0000-1000-8000-00805f9b34fb',
-  lightType:    '0001ff06-0000-1000-8000-00805f9b34fb',
-  lightIp:      '0001ff07-0000-1000-8000-00805f9b34fb',
-  lightKey:     '0001ff08-0000-1000-8000-00805f9b34fb',
-  lightAux:     '0001ff09-0000-1000-8000-00805f9b34fb',
-  clientSecret: '0001ff0a-0000-1000-8000-00805f9b34fb',
-  platform:     '0001ff0b-0000-1000-8000-00805f9b34fb',
-  timezone:     '0001ff0c-0000-1000-8000-00805f9b34fb',
-  officeHours:  '0001ff0d-0000-1000-8000-00805f9b34fb',
-  wledNew:      '0001ff0e-0000-1000-8000-00805f9b34fb'
+  witaiAPI:     '0001ff06-0000-1000-8000-00805f9b34fb',
+  timezone:     '0001ff07-0000-1000-8000-00805f9b34fb'
 };
 
 let svc = null;
 const $ = id => document.getElementById(id);
 const stat = (msg, cls) => { $('status').textContent = msg; $('status').className = 'status ' + cls; };
 
-
-// --- Timezone shows/hides office hours fields ---
-$('timezone').addEventListener('change', () => {
-  $('officeHoursFields').classList.toggle('hidden', !$('timezone').value);
-});
 
 // --- BLE Connect ---
 $('btnConnect').addEventListener('click', async () => {
@@ -152,14 +147,10 @@ $('btnConnect').addEventListener('click', async () => {
       } catch(e) { return ''; }
     };
     
-    await tryRead(UUID.clientId, $('clientId'));
-    await tryRead(UUID.tenantId, $('tenantId'));
+    await tryRead(UUID.SNId, $('SNId'));
+    await tryRead(UUID.SNPass, $('SNPass'));
+    await tryRead(UUID.witaiAPI, $('witaiAPI'));
 
-    await tryRead(UUID.clientSecret, $('zoomClientSecret'));
-
-
-    // Show Hue fields if light type is Hue
-    updateLightFields();
 
     // Read timezone + office hours
     const tz = await tryRead(UUID.timezone, null);
@@ -167,22 +158,8 @@ $('btnConnect').addEventListener('click', async () => {
       // Set dropdown if matching, otherwise leave as "None"
       const opt = Array.from($('timezone').options).find(o => o.value === tz);
       if (opt) $('timezone').value = tz;
-      $('officeHoursFields').classList.toggle('hidden', !tz);
     }
-    const oh = await tryRead(UUID.officeHours, null);
-    if (oh) {
-      // Parse "enabled,HH:MM,HH:MM,daymask"
-      const parts = oh.split(',');
-      if (parts.length >= 4) {
-        $('ohEnabled').checked = parts[0] === '1';
-        $('ohStart').value = parts[1];
-        $('ohEnd').value = parts[2];
-        const dm = parseInt(parts[3]) || 0;
-        document.querySelectorAll('#dayChecks input').forEach(cb => {
-          cb.checked = !!(dm & (1 << parseInt(cb.value)));
-        });
-      }
-    }
+  
 
   } catch(e) {
     stat('Connection failed: ' + e.message, 'err');
@@ -195,13 +172,13 @@ $('btnSave').addEventListener('click', async () => {
   const pass = $('pass').value;
   if (!ssid) { stat('SSID is required', 'err'); return; }
 
-  let clientId, tenantId, clientSecret;
+    let SNId, SNPass, witaiAPI;
 
-    clientId = $('clientId').value.trim();
-    tenantId = $('tenantId').value.trim();
-    clientSecret = '';
-    if (!clientId || !tenantId) { stat('Client ID and Tenant ID are required', 'err'); return; }
+    SNId = $('SNId').value.trim();
+    SNPass = $('SNPass').value.trim();
+    witaiAPI = $('witaiAPI').value.trim();
 
+    if (!SNId || !SNPass) { stat('SN ID and Pass are required', 'err'); return; }
 
   try {
     $('btnSave').disabled = true;
@@ -214,25 +191,14 @@ $('btnSave').addEventListener('click', async () => {
 
     await write(UUID.ssid, ssid);
     await write(UUID.password, pass);
-    await write(UUID.clientId, clientId);
-    await write(UUID.tenantId, tenantId);
-    await write(UUID.clientSecret, clientSecret);
-    await write(UUID.lightType, $('lightType').value);
-
+    await write(UUID.SNId, SNId);
+    await write(UUID.SNPass, SNPass);
+    await write(UUID.witaiAPI, witaiAPI);
     
     // Write timezone + office hours
     const tz = $('timezone').value;
     await write(UUID.timezone, tz);
-    if (tz) {
-      let dm = 0;
-      document.querySelectorAll('#dayChecks input:checked').forEach(cb => {
-        dm |= (1 << parseInt(cb.value));
-      });
-      const oh = ($('ohEnabled').checked ? '1' : '0') + ',' +
-                 ($('ohStart').value || '08:00') + ',' +
-                 ($('ohEnd').value || '17:00') + ',' + dm;
-      await write(UUID.officeHours, oh);
-    }
+    
     stat('Saving & rebooting Pod...', 'info');
     await write(UUID.save, '1');
     stat('Done! Pod is rebooting. Close this page.', 'ok');
